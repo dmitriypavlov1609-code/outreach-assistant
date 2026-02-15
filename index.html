@@ -91,9 +91,11 @@
         <select id="campaignTemplate"></select>
         <select id="campaignFilterNiche"><option value="all">Все ниши</option></select>
         <button id="buildCampaignBtn">Собрать кампанию</button>
+        <button id="sendAllBtn">Отправить всем email</button>
         <button id="downloadCsvBtn" class="ghost">Скачать CSV</button>
         <button id="downloadJsonBtn" class="ghost">Скачать JSON</button>
       </div>
+      <p class="hint">Для реальной отправки заполните Vercel ENV: <code>RESEND_API_KEY</code> и <code>OUTREACH_FROM_EMAIL</code>.</p>
       <div id="campaignStats" class="stats"></div>
       <div id="campaignList" class="list"></div>
     </section>

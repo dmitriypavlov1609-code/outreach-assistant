@@ -148,6 +148,22 @@ button.danger {
   font-size: .82rem;
 }
 
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 700;
+  border: 1px solid var(--line);
+  background: #f2f6fb;
+}
+
+.badge.sent { background: #e8f7ef; border-color: #bfe8cf; color: #0d7448; }
+.badge.read { background: #ebf4ff; border-color: #c7dcff; color: #245db7; }
+.badge.replied { background: #efeaff; border-color: #d2c5ff; color: #5837b1; }
+.badge.failed { background: #ffecec; border-color: #ffc7c7; color: #9c2d2d; }
+
 .actions {
   display: flex;
   gap: 6px;

@@ -46,6 +46,7 @@ const templatesList = document.getElementById("templatesList");
 const campaignTemplate = document.getElementById("campaignTemplate");
 const campaignFilterNiche = document.getElementById("campaignFilterNiche");
 const buildCampaignBtn = document.getElementById("buildCampaignBtn");
+const sendAllBtn = document.getElementById("sendAllBtn");
 const downloadCsvBtn = document.getElementById("downloadCsvBtn");
 const downloadJsonBtn = document.getElementById("downloadJsonBtn");
 const campaignStats = document.getElementById("campaignStats");
@@ -101,6 +102,22 @@ function downloadFile(filename, content, mime) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+function statusLabel(status) {
+  if (status === "sent") {
+    return "Отправлено";
+  }
+  if (status === "read") {
+    return "Прочитано";
+  }
+  if (status === "replied") {
+    return "Ответ";
+  }
+  if (status === "failed") {
+    return "Ошибка";
+  }
+  return "Черновик";
 }
 
 function fillTemplate(template, client) {
@@ -232,23 +249,40 @@ function renderCampaign() {
   campaignList.innerHTML = "";
   const total = state.campaign.length;
   const withEmail = state.campaign.filter((x) => x.email).length;
+  const sent = state.campaign.filter((x) => x.status === "sent").length;
+  const read = state.campaign.filter((x) => x.status === "read").length;
+  const replied = state.campaign.filter((x) => x.status === "replied").length;
+  const failed = state.campaign.filter((x) => x.status === "failed").length;
   campaignStats.textContent = total > 0
-    ? `Сообщений: ${total} · с email: ${withEmail} · без email: ${total - withEmail}`
+    ? `Сообщений: ${total} · с email: ${withEmail} · отправлено: ${sent} · прочитано: ${read} · ответы: ${replied} · ошибки: ${failed}`
     : "Кампания не собрана.";
 
   state.campaign.forEach((item) => {
+    const badgeClass = item.status ? `badge ${item.status}` : "badge";
+    const timeline = [
+      item.sentAt ? `Отправка: ${new Date(item.sentAt).toLocaleString("ru-RU")}` : "",
+      item.readAt ? `Прочтение: ${new Date(item.readAt).toLocaleString("ru-RU")}` : "",
+      item.repliedAt ? `Ответ: ${new Date(item.repliedAt).toLocaleString("ru-RU")}` : ""
+    ].filter(Boolean).join(" · ");
     const div = document.createElement("div");
     div.className = "item";
     div.innerHTML = `
       <div class="item-head">
         <strong>${esc(item.clientName)} / ${esc(item.company || "Компания")}</strong>
-        <span class="meta">${esc(item.channel)}</span>
+        <span class="${badgeClass}">${statusLabel(item.status)}</span>
       </div>
-      <div class="meta">${esc(item.email || "без email")}</div>
+      <div class="meta">${esc(item.channel)} · ${esc(item.email || "без email")}</div>
+      <div class="meta">${esc(item.subject || "Без темы")}</div>
+      <div class="meta">${esc(timeline || "Статусов пока нет")}</div>
       <p>${esc(item.message)}</p>
+      ${item.error ? `<div class="meta">Ошибка: ${esc(item.error)}</div>` : ""}
       <div class="actions">
+        <button data-send="${item.id}">Отправить</button>
         <button class="ghost" data-copy="${item.id}">Копировать</button>
         <button data-mailto="${item.id}">Открыть email</button>
+        <button class="ghost" data-mark-read="${item.id}">Отметить прочитано</button>
+        <button class="ghost" data-mark-replied="${item.id}">Отметить ответ</button>
+        <button class="ghost" data-reset-status="${item.id}">Сброс статуса</button>
       </div>
     `;
     campaignList.appendChild(div);
@@ -339,8 +373,15 @@ function buildCampaign() {
     company: client.company || "",
     niche: client.niche || "",
     email: client.email || "",
+    subject: `Идеи автоматизации для ${client.company || client.name || "вашего бизнеса"}`,
     message: fillTemplate(template.body, client),
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    status: "draft",
+    sentAt: null,
+    readAt: null,
+    repliedAt: null,
+    error: "",
+    providerMessageId: ""
   }));
 
   saveState();
@@ -353,7 +394,7 @@ function exportCampaignCsv() {
     return;
   }
 
-  const rows = ["client_name,company,email,niche,channel,message"];
+  const rows = ["client_name,company,email,niche,channel,subject,status,sent_at,read_at,replied_at,message"];
   state.campaign.forEach((item) => {
     const cols = [
       item.clientName,
@@ -361,6 +402,11 @@ function exportCampaignCsv() {
       item.email,
       item.niche,
       item.channel,
+      item.subject || "",
+      item.status || "draft",
+      item.sentAt || "",
+      item.readAt || "",
+      item.repliedAt || "",
       item.message
     ].map((v) => `"${String(v || "").replaceAll('"', '""')}"`);
     rows.push(cols.join(","));
@@ -375,6 +421,86 @@ function exportCampaignJson() {
     return;
   }
   downloadFile(`campaign_${Date.now()}.json`, JSON.stringify(state.campaign, null, 2), "application/json;charset=utf-8");
+}
+
+function updateCampaignItem(itemId, patch) {
+  const idx = state.campaign.findIndex((item) => item.id === itemId);
+  if (idx < 0) {
+    return null;
+  }
+  state.campaign[idx] = { ...state.campaign[idx], ...patch };
+  saveState();
+  renderCampaign();
+  return state.campaign[idx];
+}
+
+async function sendCampaignItem(itemId) {
+  const item = state.campaign.find((x) => x.id === itemId);
+  if (!item) {
+    return;
+  }
+  if (item.channel !== "email") {
+    alert("Автоотправка сейчас доступна только для email-шаблонов.");
+    return;
+  }
+  if (!item.email) {
+    alert("У клиента нет email.");
+    return;
+  }
+  if (!state.profile.ownerEmail) {
+    alert("Заполните ваш контактный email в профиле.");
+    return;
+  }
+
+  updateCampaignItem(itemId, { error: "" });
+  try {
+    const res = await fetch("/api/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: item.email,
+        subject: item.subject || "Предложение по автоматизации",
+        text: item.message,
+        fromName: state.profile.brandName || state.profile.ownerName || "Outreach Assistant",
+        replyTo: state.profile.ownerEmail
+      })
+    });
+
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload.error || "Не удалось отправить письмо.");
+    }
+
+    updateCampaignItem(itemId, {
+      status: "sent",
+      sentAt: new Date().toISOString(),
+      error: "",
+      providerMessageId: payload.messageId || ""
+    });
+  } catch (error) {
+    updateCampaignItem(itemId, {
+      status: "failed",
+      error: error.message || "Ошибка отправки"
+    });
+  }
+}
+
+async function sendAllEmails() {
+  const queue = state.campaign.filter((item) => item.channel === "email" && item.email);
+  if (queue.length === 0) {
+    alert("Нет email-сообщений для отправки.");
+    return;
+  }
+
+  sendAllBtn.disabled = true;
+  sendAllBtn.textContent = "Отправка...";
+  for (const item of queue) {
+    // Отправка по одному сообщению, чтобы видеть статус каждого.
+    // eslint-disable-next-line no-await-in-loop
+    await sendCampaignItem(item.id);
+  }
+  sendAllBtn.disabled = false;
+  sendAllBtn.textContent = "Отправить всем email";
 }
 
 async function importGithubRepos() {
@@ -500,6 +626,12 @@ templatesList.addEventListener("click", (event) => {
 });
 
 campaignList.addEventListener("click", async (event) => {
+  const sendBtn = event.target.closest("button[data-send]");
+  if (sendBtn) {
+    await sendCampaignItem(sendBtn.dataset.send);
+    return;
+  }
+
   const copyBtn = event.target.closest("button[data-copy]");
   if (copyBtn) {
     const item = state.campaign.find((x) => x.id === copyBtn.dataset.copy);
@@ -526,6 +658,37 @@ campaignList.addEventListener("click", async (event) => {
     const subject = encodeURIComponent("Предложение по автоматизации");
     const body = encodeURIComponent(item.message);
     window.location.href = `mailto:${encodeURIComponent(item.email)}?subject=${subject}&body=${body}`;
+    return;
+  }
+
+  const markReadBtn = event.target.closest("button[data-mark-read]");
+  if (markReadBtn) {
+    updateCampaignItem(markReadBtn.dataset.markRead, {
+      status: "read",
+      readAt: new Date().toISOString()
+    });
+    return;
+  }
+
+  const markRepliedBtn = event.target.closest("button[data-mark-replied]");
+  if (markRepliedBtn) {
+    updateCampaignItem(markRepliedBtn.dataset.markReplied, {
+      status: "replied",
+      repliedAt: new Date().toISOString()
+    });
+    return;
+  }
+
+  const resetStatusBtn = event.target.closest("button[data-reset-status]");
+  if (resetStatusBtn) {
+    updateCampaignItem(resetStatusBtn.dataset.resetStatus, {
+      status: "draft",
+      sentAt: null,
+      readAt: null,
+      repliedAt: null,
+      error: "",
+      providerMessageId: ""
+    });
   }
 });
 
@@ -537,6 +700,7 @@ addCaseBtn.addEventListener("click", addCase);
 addClientBtn.addEventListener("click", addClient);
 addTemplateBtn.addEventListener("click", addTemplate);
 buildCampaignBtn.addEventListener("click", buildCampaign);
+sendAllBtn.addEventListener("click", sendAllEmails);
 downloadCsvBtn.addEventListener("click", exportCampaignCsv);
 downloadJsonBtn.addEventListener("click", exportCampaignJson);
 fetchGithubBtn.addEventListener("click", importGithubRepos);
