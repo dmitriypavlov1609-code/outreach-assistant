@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outreach Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero card">
+      <div>
+        <p class="eyebrow">Продажи и аутрич</p>
+        <h1>Outreach Assistant</h1>
+        <p class="subtitle">Готовые тексты, база клиентов, кейсы GitHub и массовая персонализация.</p>
+      </div>
+      <div class="hero-actions">
+        <button id="seedBtn" class="ghost">Загрузить демо</button>
+        <button id="clearBtn" class="danger">Очистить все</button>
+      </div>
+    </header>
+
+    <section class="grid two">
+      <article class="card">
+        <h2>Профиль предложения</h2>
+        <div class="stack">
+          <label>Ваше имя <input id="ownerName" type="text" placeholder="Дмитрий" /></label>
+          <label>Компания/бренд <input id="brandName" type="text" placeholder="Automation Studio" /></label>
+          <label>Контактный email <input id="ownerEmail" type="email" placeholder="you@example.com" /></label>
+          <label>Контакт Telegram/WhatsApp <input id="ownerContact" type="text" placeholder="@username / +7 ..." /></label>
+          <label>Ключевое оффер-сообщение
+            <textarea id="offerText" rows="3" placeholder="Создаем приложения, ботов и автоматизируем процессы в разных нишах."></textarea>
+          </label>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>GitHub кейсы</h2>
+        <div class="inline">
+          <input id="githubUser" type="text" placeholder="GitHub username" />
+          <button id="fetchGithubBtn" class="ghost">Импорт из GitHub</button>
+        </div>
+        <div class="inline">
+          <input id="caseTitle" type="text" placeholder="Название кейса" />
+          <input id="caseUrl" type="url" placeholder="https://github.com/..." />
+          <input id="caseNiche" type="text" placeholder="Ниша" />
+          <button id="addCaseBtn">Добавить</button>
+        </div>
+        <div id="casesList" class="list"></div>
+      </article>
+    </section>
+
+    <section class="grid two">
+      <article class="card">
+        <h2>Клиенты</h2>
+        <div class="inline">
+          <input id="clientName" type="text" placeholder="Имя" />
+          <input id="clientCompany" type="text" placeholder="Компания" />
+          <input id="clientEmail" type="email" placeholder="Email" />
+          <input id="clientNiche" type="text" placeholder="Ниша" />
+          <button id="addClientBtn">Добавить</button>
+        </div>
+        <div id="clientsList" class="list"></div>
+      </article>
+
+      <article class="card">
+        <h2>Шаблоны сообщений</h2>
+        <div class="inline">
+          <select id="templateChannel">
+            <option value="email">Email</option>
+            <option value="telegram">Telegram</option>
+            <option value="linkedin">LinkedIn</option>
+          </select>
+          <input id="templateName" type="text" placeholder="Название шаблона" />
+        </div>
+        <label>Текст шаблона
+          <textarea id="templateBody" rows="5" placeholder="Здравствуйте, {{client_name}}..."></textarea>
+        </label>
+        <button id="addTemplateBtn">Сохранить шаблон</button>
+        <p class="hint">Переменные: <code>{{client_name}}</code>, <code>{{company}}</code>, <code>{{niche}}</code>, <code>{{offer}}</code>, <code>{{examples}}</code>, <code>{{owner_name}}</code>, <code>{{contact}}</code>.</p>
+        <div id="templatesList" class="list"></div>
+      </article>
+    </section>
+
+    <section class="card">
+      <h2>Кампания</h2>
+      <div class="inline">
+        <select id="campaignTemplate"></select>
+        <select id="campaignFilterNiche"><option value="all">Все ниши</option></select>
+        <button id="buildCampaignBtn">Собрать кампанию</button>
+        <button id="downloadCsvBtn" class="ghost">Скачать CSV</button>
+        <button id="downloadJsonBtn" class="ghost">Скачать JSON</button>
+      </div>
+      <div id="campaignStats" class="stats"></div>
+      <div id="campaignList" class="list"></div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
